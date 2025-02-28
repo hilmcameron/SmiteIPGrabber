@@ -1,4 +1,4 @@
-# SMITE IP Grabber (Retired with Prejudice) 🪦
+# SMITE IP Grabber (Retired)
 
 **Disclaimer:** This tool hasn't worked since 2023/2024 because Hi-Rez finally discovered basic security practices (after only 9 years!). Keeping this public as a monument to corporate incompetence.
 
