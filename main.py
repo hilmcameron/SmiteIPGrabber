@@ -20,13 +20,11 @@ from PyQt5.QtGui import QIcon, QPalette, QColor
 
 import pyperclip
 
-
 class ConnectionData(NamedTuple):
     """Container for parsed connection information."""
     timestamp: datetime
     ip: str
     port: str
-
 
 class LauncherManager:
     """Handles detection and validation of game launcher paths."""
@@ -36,29 +34,21 @@ class LauncherManager:
 
     @classmethod
     def get_launcher_path(cls) -> Path:
-        """Displays dialog to select game launcher.
-
-        Returns:
-            Path object to selected launcher's log directory
-
-        Raises:
-            FileNotFoundError: If selected directory doesn't exist
-        """
+        """Displays dialog to select game launcher."""
         dialog = QMessageBox()
         dialog.setWindowIcon(QIcon(str(cls.ICON_PATH)))
         dialog.setWindowTitle("Select Launcher")
         dialog.setText("Choose your SMITE launcher:")
-        
+
         steam_btn = dialog.addButton("Steam", QMessageBox.YesRole)
         epic_btn = dialog.addButton("Epic Games", QMessageBox.NoRole)
-        
+
         dialog.exec_()
-        
+
         selected_path = cls.STEAM_DIR if dialog.clickedButton() == steam_btn else cls.EPIC_DIR
         if not selected_path.exists():
             raise FileNotFoundError(f"Launcher directory not found: {selected_path}")
         return selected_path
-
 
 class LogParser:
     """Handles log file parsing and data extraction."""
@@ -71,6 +61,7 @@ class LogParser:
         self.log_dir = log_dir
 
     def find_latest_log(self) -> Optional[Path]:
+        """Find the latest log file in the directory."""
         try:
             return max(
                 self.log_dir.glob(f"{self.LOG_PREFIX}*"),
@@ -81,6 +72,7 @@ class LogParser:
             return None
 
     def extract_connection_data(self, log_path: Path) -> Optional[ConnectionData]:
+        """Extract connection data from the log file."""
         try:
             with log_path.open("r", encoding="utf-8") as file:
                 for line in reversed(file.readlines()):
@@ -91,19 +83,20 @@ class LogParser:
         return None
 
     def _is_valid_line(self, line: str) -> bool:
+        """Check if the line contains valid connection data."""
         return "Connection" in line or "Connected" in line
 
     def _parse_line(self, line: str) -> Optional[ConnectionData]:
+        """Parse the line to extract connection data."""
         ts_match = self.TIMESTAMP_REGEX.search(line)
         conn_match = self.CONNECTION_REGEX.search(line)
-        
+
         if ts_match and conn_match:
             ip, port = conn_match.groups()
             if port not in self.EXCLUDED_PORTS:
                 timestamp = datetime.strptime(ts_match.group(), "%d-%m-%Y %H:%M:%S")
                 return ConnectionData(timestamp, ip, port)
         return None
-
 
 class IPGrabberUI(QWidget):
     """Main application GUI."""
@@ -140,6 +133,7 @@ class IPGrabberUI(QWidget):
         self._select_launcher()
 
     def _configure_ui(self) -> None:
+        """Configure the UI components."""
         self.setWindowIcon(QIcon(str(LauncherManager.ICON_PATH)))
         self.setWindowTitle("SMITE IP Grabber")
         self.setMinimumSize(400, 250)
@@ -156,38 +150,42 @@ class IPGrabberUI(QWidget):
         self.setLayout(layout)
 
     def _create_info_label(self, layout: QVBoxLayout) -> None:
+        """Create the info label."""
         info_label = QLabel("Refresh while in-game for accurate results")
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setStyleSheet("font-weight: bold; color: #88C0D0;")
         layout.addWidget(info_label)
 
     def _create_input_fields(self, layout: QVBoxLayout) -> Tuple[QLineEdit, QLineEdit]:
+        """Create the input fields."""
         ip_field = self._create_field("IP Address", "Copy IP", layout)
         port_field = self._create_field("Port", "Copy Port", layout)
         return ip_field, port_field
 
     def _create_field(self, placeholder: str, btn_text: str, layout: QVBoxLayout) -> QLineEdit:
+        """Create a field with a copy button."""
         field = QLineEdit(self)
         field.setPlaceholderText(placeholder)
         field.setReadOnly(True)
-        
+
         copy_btn = QPushButton(btn_text, self)
         copy_btn.clicked.connect(lambda: self._copy_to_clipboard(field.text()))
-        
+
         field_layout = QHBoxLayout()
         field_layout.addWidget(field, 4)
         field_layout.addWidget(copy_btn, 1)
         layout.addLayout(field_layout)
-        
+
         return field
 
     def _create_control_buttons(self, layout: QVBoxLayout) -> None:
+        """Create the control buttons."""
         self.refresh_btn = QPushButton("Refresh", self)
         self.refresh_btn.clicked.connect(self._update_connection_info)
-        
+
         self.launcher_btn = QPushButton("Change Launcher", self)
         self.launcher_btn.clicked.connect(self._select_launcher)
-        
+
         help_btn = QPushButton("Help", self)
         help_btn.clicked.connect(self._show_help)
 
@@ -196,6 +194,7 @@ class IPGrabberUI(QWidget):
             layout.addWidget(btn)
 
     def _select_launcher(self) -> None:
+        """Select the game launcher."""
         try:
             if path := LauncherManager.get_launcher_path():
                 self.log_parser = LogParser(path)
@@ -205,6 +204,7 @@ class IPGrabberUI(QWidget):
 
     @pyqtSlot()
     def _update_connection_info(self) -> None:
+        """Update the connection info."""
         if not self.log_parser:
             return
 
@@ -219,11 +219,13 @@ class IPGrabberUI(QWidget):
 
     @staticmethod
     def _copy_to_clipboard(text: str) -> None:
+        """Copy text to clipboard."""
         if text:
             pyperclip.copy(text)
 
     @staticmethod
     def _show_help() -> None:
+        """Show help message."""
         QMessageBox.information(
             None,
             "Help",
@@ -231,29 +233,28 @@ class IPGrabberUI(QWidget):
             QMessageBox.Ok
         )
 
-
 def main() -> None:
+    """Main entry point."""
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    
+
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(46, 46, 46))
     palette.setColor(QPalette.WindowText, Qt.white)
     app.setPalette(palette)
-    
+
     window = IPGrabberUI()
     window.show()
     sys.exit(app.exec_())
 
-
 if __name__ == "__main__":
     print(r"""
      ____            _ _         ___ ____     ____           _     _               
-    / ___| _ __ ___ (_) |_ ___  |_ _|  _ \   / ___|_ __ __ _| |__ | |__   ___ _ __ 
+    / ___| _ __ ___ (_) |_ ___  |_ _|  _ \   / ___|_ __ __ _| |__ | |__   ___ _ __
     \___ \| '_ ` _ \| | __/ _ \  | || |_) | | |  _| '__/ _` | '_ \| '_ \/ _ \ '__|
-     ___) | | | | | | | ||  __/  | ||  __/  | |_| | | | (_| | |_) | |_) |  __/ |   
-    |____/|_| |_| |_|_|\__\___| |___|_|      \____|_|  \__,_|_.__/|_.__/ \___|_|  
-                                                                    
+     ___) | | | | | | | ||  __/  | ||  __/  | |_| | | | (_| | |_) | |_) |  __/ |
+    |____/|_| |_| |_|_|\__\___| |___|_|      \____|_|  \__,_|_.__/|_.__/ \___|_|
+
             Made by 54b3r -> For help add me on discord.
     """)
     main()
